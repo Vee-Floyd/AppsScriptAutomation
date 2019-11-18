@@ -1,0 +1,23 @@
+
+// Makes menu header
+function onOpen() {
+   var spreadsheet = SpreadsheetApp.getActive();
+   var menuItems = [{name: 'Refresh Data', functionName: 'getData'}];
+   spreadsheet.addMenu('ImportData', menuItems);
+}
+
+
+
+function getData() {
+  var key = "INSERT SHEET KEY HERE"
+  // you would place the spreadsheet key in A1, alternatively you can enter the key directly here rather than referencing
+  var sourceSs = SpreadsheetApp.openById(key);
+  var sourceSheet = sourceSs.getSheetByName("Data");
+  var sourceRange = sourceSheet.getRange("A1:L");
+  var sourceValues = sourceRange.getValues(); 
+  var destSs = SpreadsheetApp.getActiveSpreadsheet();
+  var destSheet = destSs.getSheetByName("Sheet20");
+  var desRange = destSheet.getRange("A1:L");
+  destSheet.insertRows(sourceSheet.getMaxRows())
+  desRange.setValues(sourceValues);
+}
