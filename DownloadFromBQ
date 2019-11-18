@@ -1,0 +1,82 @@
+
+//Menu add so you can run query from toolbar, can add multiple functions for each download as a list here
+function onOpen() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var menuItems = [
+    {name: 'Update data', functionName: 'UpdateData'}
+  ];
+  spreadsheet.addMenu('BigQuery', menuItems);
+}
+
+
+// Name function to describe the data you're pulling - make sure to add your function name to the menu at the top
+function UpdateData() {
+
+  // Put our project id and tab name here
+  var projectId = 'INSERT BIGQUERY PROJECT ID HERE';
+  var sheetName = 'INSERT SHEET NAME HERE';
+
+  // Insert query here - make sure legacy sql is false
+  var request = {
+    query: 'INSERT SQL QUERY HERE',
+    useLegacySql: false
+  };
+  var queryResults = BigQuery.Jobs.query(request, projectId);
+  var jobId = queryResults.jobReference.jobId;
+  
+//NOTHING AFTER THIS NEEDS EDITING
+  
+  // Check on status of the Query, wait to get results before sheet is created 
+  var sleepTimeMs = 500;
+  while (!queryResults.jobComplete) {
+    Utilities.sleep(sleepTimeMs);
+    sleepTimeMs *= 2;
+    queryResults = BigQuery.Jobs.getQueryResults(projectId, jobId);
+  }
+  
+  // Get results
+  var rows = queryResults.rows;
+  while (queryResults.pageToken) {
+    queryResults = BigQuery.Jobs.getQueryResults(projectId, jobId, {
+      pageToken: queryResults.pageToken
+    });
+    rows = rows.concat(queryResults.rows);
+  }
+  console.info('%d rows found.', rows.length);
+     
+  
+  if (rows) {
+    // Append results
+    var data = new Array(rows.length);
+    for (var i = 0; i < rows.length; i++) {
+      var cols = rows[i].f;
+      data[i] = new Array(cols.length);
+      for (var j = 0; j < cols.length; j++) {
+        data[i][j] = cols[j].v;
+      }
+    }
+    
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var currentSheet = ss.getSheetByName(sheetName);
+
+    if (currentSheet === null) {
+      currentSheet = ss.insertSheet(99);
+      ss.renameActiveSheet(sheetName);
+    } else {
+      currentSheet.clear();
+    }
+var headers = queryResults.schema.fields.map(function(field) {
+ return field.name;
+ });
+ currentSheet.appendRow(headers);
+
+//If query returns no results
+ if (rows) {
+ currentSheet.getRange(2, 1, rows.length, headers.length).setValues(data)};
+    
+    console.info('%d rows inserted.', rows.length);
+  } else {
+    console.info('No results found in BigQuery');
+  }
+};
+
