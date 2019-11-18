@@ -1,0 +1,45 @@
+//Menu add so you can run query from toolbar
+function onOpen() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var menuItems = [
+    {name: 'Upload to BigQuery', functionName: 'UploadtoBQ'}];
+    spreadsheet.addMenu('Upload to BigQuery', menuItems);
+  }
+
+
+function UploadtoBQ() {
+//Grabbing project id, dataset name and table name (these all need to be created in BQ ahead of time)
+var dataRangeValues = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Schema").getDataRange().getValues();
+var projectId = dataRangeValues[0][1];
+var datasetId = dataRangeValues[1][1];
+var tableId = dataRangeValues[2][1];
+
+
+//use data sheet as table values
+var datasheet= SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data")
+Utilities.formatString('%yyyy-%MM-%dd',datasheet.getRange(1,datasheet.getLastRow()))
+//reminder - date needs to be in parenthesis in a helper column or we get the wrong format in bigquery
+var data = datasheet.getRange(1,1,datasheet.getLastRow(),datasheet.getLastColumn()).getValues();
+var dataAsFile=data.join("\n");
+var blob= Utilities.newBlob(dataAsFile,"text/csv")
+var data = blob.setContentType('application/octet-stream');  
+ 
+  
+  // Upload to BQ
+  var job = {
+    configuration: {
+      load: {
+        destinationTable: {
+          projectId: projectId,
+          datasetId: datasetId,
+          tableId: tableId
+        },
+        skipLeadingRows: 1,
+        writeDisposition: 'WRITE_TRUNCATE'
+      }
+    }
+  };
+  job = BigQuery.Jobs.insert(job, projectId, data);
+  Logger.log('Load job started. Check on the status of it here: ' +
+      'https://bigquery.cloud.google.com/jobs/%s', projectId);
+}
